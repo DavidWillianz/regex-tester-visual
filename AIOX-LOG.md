@@ -156,16 +156,19 @@ Decisoes durante implementacao:
 ---
 
 ## @devops
-**Comando de deploy:**
-```bash
-cd "Projeto-UI-AIOX"
-npx vercel --prod
+**Comandos de deploy executados:**
+```powershell
+# 1. GitHub (via gh CLI)
+gh repo create regex-tester-visual --public --source=. --push
+
+# 2. Vercel (zero-config, detecta Vite)
+npx vercel --prod --yes --name regex-tester-visual
 ```
-Vercel detecta Vite automaticamente (`vite build` -> `dist/`). Sem config adicional.
+Vercel detectou Vite automaticamente (`vite build` -> `dist/`). Build na regiao iad1 (Washington), 9s. Sem `vercel.json` necessario.
 
-**URL final:** _[preencher apos `vercel --prod`]_
+**URL final:** https://regex-tester-visual.vercel.app
 
-**Repositorio:** _[preencher com URL do GitHub]_
+**Repositorio:** https://github.com/DavidWillianz/regex-tester-visual
 
 ---
 

@@ -5,8 +5,8 @@ Ferramenta web de produtividade para devs: testa expressoes regulares com highli
 Projeto da disciplina **IA Generativa com AIOX** — 7ª fase de Sistemas de Informacao (UNIVALI).
 
 ## Demo
-- **Vercel:** _adicionar URL apos deploy_
-- **Repo:** _adicionar URL do GitHub_
+- **Vercel:** https://regex-tester-visual.vercel.app
+- **Repo:** https://github.com/DavidWillianz/regex-tester-visual
 
 ## Funcionalidades
 - Input de padrao com deteccao de erro
