@@ -12,6 +12,175 @@ const FLAGS: { key: FlagKey; label: string; help: string }[] = [
   { key: 'y', label: 'y', help: 'sticky - casa a partir do lastIndex' },
 ]
 
+type Preset = { label: string; pattern: string; flags: string; sample: string; tag: 'BR' | 'COMUM' }
+
+const PRESETS: Preset[] = [
+  {
+    label: 'Email',
+    pattern: '\\b[\\w.+-]+@[\\w-]+\\.[\\w.-]+\\b',
+    flags: 'gi',
+    sample: 'Contato: david@winddigital.com.br ou suporte@univali.br - invalido @ nao.casa',
+    tag: 'COMUM',
+  },
+  {
+    label: 'CPF',
+    pattern: '\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}',
+    flags: 'g',
+    sample: 'CPF do cliente: 123.456.789-00\nOutro: 987.654.321-11\nInvalido: 12345678900',
+    tag: 'BR',
+  },
+  {
+    label: 'CNPJ',
+    pattern: '\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}',
+    flags: 'g',
+    sample: 'CNPJ da empresa: 12.345.678/0001-90\nFilial: 98.765.432/0001-55',
+    tag: 'BR',
+  },
+  {
+    label: 'CEP',
+    pattern: '\\d{5}-?\\d{3}',
+    flags: 'g',
+    sample: 'Endereco: Rua X, CEP 88010-000\nOutro CEP sem traco: 01310100',
+    tag: 'BR',
+  },
+  {
+    label: 'Telefone BR',
+    pattern: '\\(?\\d{2}\\)?\\s?9?\\d{4}-?\\d{4}',
+    flags: 'g',
+    sample: 'Celular (47) 99999-0000\nFixo: 47 3333-4444\nOutro: (11)912345678',
+    tag: 'BR',
+  },
+  {
+    label: 'Data BR',
+    pattern: '\\d{2}/\\d{2}/\\d{4}',
+    flags: 'g',
+    sample: 'Hoje eh 24/05/2026, ontem foi 23/05/2026 e amanha 25/05/2026.',
+    tag: 'BR',
+  },
+  {
+    label: 'Placa Mercosul',
+    pattern: '\\b[A-Z]{3}\\d[A-Z]\\d{2}\\b',
+    flags: 'g',
+    sample: 'Placas Mercosul vistas: ABC1D23 e XYZ9P88\nAntiga (nao casa): ABC-1234',
+    tag: 'BR',
+  },
+  {
+    label: 'URL',
+    pattern: 'https?://[\\w.-]+(?:/[\\w./?=&%-]*)?',
+    flags: 'gi',
+    sample: 'Veja https://github.com/DavidWillianz/regex-tester-visual e http://exemplo.com.br/path?id=42',
+    tag: 'COMUM',
+  },
+  {
+    label: 'IPv4',
+    pattern: '\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b',
+    flags: 'g',
+    sample: 'Server: 192.168.0.1, gateway 10.0.0.1, dns 8.8.8.8',
+    tag: 'COMUM',
+  },
+  {
+    label: 'Cor Hex',
+    pattern: '#[0-9a-f]{3,8}\\b',
+    flags: 'gi',
+    sample: 'Paleta dark: #0b1020, #7c9cff, #f6c177 e #fff',
+    tag: 'COMUM',
+  },
+]
+
+type LangGen = (pattern: string, flags: string) => string
+
+const LANGUAGES: { id: string; label: string; gen: LangGen }[] = [
+  {
+    id: 'js',
+    label: 'JavaScript',
+    gen: (p, f) => `const text = "...";
+const regex = /${p}/${f};
+const matches = [...text.matchAll(regex)];
+for (const m of matches) {
+  console.log(m.index, m[0], m.groups);
+}`,
+  },
+  {
+    id: 'ts',
+    label: 'TypeScript',
+    gen: (p, f) => `const text = "...";
+const regex = /${p}/${f};
+const matches: RegExpMatchArray[] = [...text.matchAll(regex)];
+matches.forEach((m) => console.log(m.index, m[0]));`,
+  },
+  {
+    id: 'py',
+    label: 'Python',
+    gen: (p, f) => {
+      const map: Record<string, string> = {
+        i: 're.IGNORECASE',
+        m: 're.MULTILINE',
+        s: 're.DOTALL',
+        u: 're.UNICODE',
+      }
+      const opts = [...f].map((c) => map[c]).filter(Boolean).join(' | ') || '0'
+      const isGlobal = f.includes('g')
+      const call = isGlobal ? 're.findall(pattern, text, flags)' : 're.search(pattern, text, flags)'
+      return `import re
+
+text = "..."
+pattern = r"${p.replace(/"/g, '\\"')}"
+flags = ${opts}
+matches = ${call}
+print(matches)`
+    },
+  },
+  {
+    id: 'cs',
+    label: 'C# / .NET',
+    gen: (p, f) => {
+      const map: Record<string, string> = {
+        i: 'RegexOptions.IgnoreCase',
+        m: 'RegexOptions.Multiline',
+        s: 'RegexOptions.Singleline',
+      }
+      const opts = [...f].map((c) => map[c]).filter(Boolean).join(' | ') || 'RegexOptions.None'
+      return `using System.Text.RegularExpressions;
+
+string text = "...";
+var regex = new Regex(@"${p.replace(/"/g, '""')}", ${opts});
+foreach (Match m in regex.Matches(text))
+{
+    Console.WriteLine($"{m.Index}: {m.Value}");
+}`
+    },
+  },
+  {
+    id: 'php',
+    label: 'PHP',
+    gen: (p, f) => `$text = "...";
+preg_match_all('/${p.replace(/'/g, "\\'")}/${f}', $text, $matches, PREG_OFFSET_CAPTURE);
+print_r($matches);`,
+  },
+  {
+    id: 'java',
+    label: 'Java',
+    gen: (p, f) => {
+      const map: Record<string, string> = {
+        i: 'Pattern.CASE_INSENSITIVE',
+        m: 'Pattern.MULTILINE',
+        s: 'Pattern.DOTALL',
+        u: 'Pattern.UNICODE_CASE',
+      }
+      const opts = [...f].map((c) => map[c]).filter(Boolean).join(' | ') || '0'
+      const escaped = p.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+      return `import java.util.regex.*;
+
+String text = "...";
+Pattern p = Pattern.compile("${escaped}", ${opts});
+Matcher m = p.matcher(text);
+while (m.find()) {
+    System.out.println(m.start() + ": " + m.group());
+}`
+    },
+  },
+]
+
 type HistoryItem = {
   id: string
   pattern: string
@@ -49,7 +218,7 @@ function runMatches(regex: RegExp, sample: string): MatchInfo[] {
     let guard = 0
     const re = new RegExp(regex.source, regex.flags)
     while ((m = re.exec(sample)) !== null) {
-      if (m.index === re.lastIndex) re.lastIndex++ // zero-width safety
+      if (m.index === re.lastIndex) re.lastIndex++
       matches.push({
         start: m.index,
         end: m.index + m[0].length,
@@ -123,6 +292,9 @@ export default function App() {
   const [sample, setSample] = useState(DEFAULT_SAMPLE)
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('regex-theme') as 'dark' | 'light') || 'dark')
+  const [showHelp, setShowHelp] = useState(false)
+  const [selectedLang, setSelectedLang] = useState<string>('js')
+  const [copiedLang, setCopiedLang] = useState(false)
 
   useEffect(() => setHistory(loadHistory()), [])
   useEffect(() => {
@@ -178,6 +350,24 @@ export default function App() {
     navigator.clipboard?.writeText(`/${pattern}/${flags}`).catch(() => {})
   }
 
+  function loadPreset(p: Preset) {
+    setPattern(p.pattern)
+    setFlagSet(new Set(p.flags.split('') as FlagKey[]))
+    setSample(p.sample)
+  }
+
+  const currentSnippet = useMemo(() => {
+    const lang = LANGUAGES.find((l) => l.id === selectedLang) ?? LANGUAGES[0]
+    return lang.gen(pattern, flags)
+  }, [selectedLang, pattern, flags])
+
+  function copySnippet() {
+    navigator.clipboard?.writeText(currentSnippet).then(() => {
+      setCopiedLang(true)
+      setTimeout(() => setCopiedLang(false), 1500)
+    }).catch(() => {})
+  }
+
   const namedGroupNames = useMemo(() => {
     const names = new Set<string>()
     matches.forEach((m) => Object.keys(m.named).forEach((n) => names.add(n)))
@@ -191,13 +381,70 @@ export default function App() {
           <span className="logo">/.*/</span>
           <div>
             <h1>Regex Tester Visual</h1>
-            <p className="subtitle">Teste expressoes regulares com highlight em tempo real</p>
+            <p className="subtitle">Teste · Visualize · Copie o codigo na sua linguagem</p>
           </div>
         </div>
-        <button className="theme-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Alternar tema">
-          {theme === 'dark' ? '☀' : '☾'}
-        </button>
+        <div className="topbar-actions">
+          <button className="help-btn" onClick={() => setShowHelp((s) => !s)} type="button">
+            {showHelp ? '✕ fechar' : '? como usar'}
+          </button>
+          <button className="theme-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Alternar tema">
+            {theme === 'dark' ? '☀' : '☾'}
+          </button>
+        </div>
       </header>
+
+      {showHelp && (
+        <section className="help-card">
+          <h2>Como usar esta pagina</h2>
+          <div className="help-grid">
+            <div>
+              <strong>1. Padrao</strong>
+              <p>Digite sua regex no campo entre as <code>/ /</code>. As flags ativas aparecem no canto direito. Clique nos botoes <code>g i m s u y</code> para ligar/desligar. Erro de sintaxe deixa a borda vermelha.</p>
+            </div>
+            <div>
+              <strong>2. Texto de teste</strong>
+              <p>Cole aqui o texto onde quer aplicar a regex (log, JSON, lista). Atualiza em tempo real — sem botao.</p>
+            </div>
+            <div>
+              <strong>3. Resultado</strong>
+              <p>Mostra o texto com os matches destacados em amarelo. Passe o mouse no destaque para ver o intervalo de caracteres.</p>
+            </div>
+            <div>
+              <strong>4. Grupos capturados</strong>
+              <p>Cada parenteses <code>(...)</code> na sua regex vira uma coluna <code>g1</code>, <code>g2</code>. Grupos nomeados <code>(?&lt;nome&gt;...)</code> aparecem como <code>?&lt;nome&gt;</code>.</p>
+            </div>
+            <div>
+              <strong>5. Padroes prontos</strong>
+              <p>Clique em um chip (CPF, CNPJ, CEP, Email...) para carregar regex e amostra com 1 clique. Diferencial BR ao lado.</p>
+            </div>
+            <div>
+              <strong>6. Snippet de codigo</strong>
+              <p>Diferencial: troca a aba de linguagem e gera o codigo pronto pra colar (JS, TS, Python, C#, PHP, Java) com as flags ja mapeadas corretamente.</p>
+            </div>
+            <div>
+              <strong>7. Historico</strong>
+              <p>Clique em <b>salvar</b> para guardar o padrao. Lista persiste no <code>localStorage</code> do navegador, ate 12 itens. Clique para restaurar.</p>
+            </div>
+            <div>
+              <strong>Dica</strong>
+              <p>Use a flag <code>g</code> pra ver <em>todas</em> as ocorrencias. Sem ela, so a primeira aparece. Tema dark/light no canto superior direito.</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="presets-bar">
+        <span className="presets-label">Padroes prontos:</span>
+        <div className="presets-list">
+          {PRESETS.map((p) => (
+            <button key={p.label} className={`preset ${p.tag === 'BR' ? 'br' : ''}`} onClick={() => loadPreset(p)} type="button" title={`/${p.pattern}/${p.flags}`}>
+              {p.tag === 'BR' && <span className="flag-br">🇧🇷</span>}
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <main className="grid">
         <section className="card">
@@ -301,6 +548,30 @@ export default function App() {
         </section>
 
         <section className="card span-2">
+          <h2>
+            Snippet de codigo
+            <span className="badge gold">★ diferencial</span>
+          </h2>
+          <p className="muted snippet-help">Copie o codigo pronto na sua linguagem. Flags ja mapeadas (ex: <code>i</code> vira <code>re.IGNORECASE</code> em Python).</p>
+          <div className="lang-tabs">
+            {LANGUAGES.map((l) => (
+              <button
+                key={l.id}
+                className={`lang-tab ${selectedLang === l.id ? 'active' : ''}`}
+                onClick={() => setSelectedLang(l.id)}
+                type="button"
+              >
+                {l.label}
+              </button>
+            ))}
+            <button className="ghost copy-code" onClick={copySnippet} type="button">
+              {copiedLang ? '✓ copiado' : 'copiar codigo'}
+            </button>
+          </div>
+          <pre className="code-block">{currentSnippet}</pre>
+        </section>
+
+        <section className="card span-2">
           <div className="history-head">
             <h2>Historico <span className="badge">{history.length}</span></h2>
             {history.length > 0 && (
@@ -332,7 +603,7 @@ export default function App() {
       <footer className="footer">
         <p>
           Construido com AIOX workflow · sem backend · dados em <code>localStorage</code> ·
-          <a href="https://github.com" target="_blank" rel="noreferrer"> ver repo</a>
+          <a href="https://github.com/DavidWillianz/regex-tester-visual" target="_blank" rel="noreferrer"> ver repo</a>
         </p>
       </footer>
     </div>
